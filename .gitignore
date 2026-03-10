@@ -4,5 +4,7 @@ __pycache__/
 *.pyd
 *.egg-info/
 dist/
-build/
+build/*
+!build/pyinstaller_build.sh
+!build/pyinstaller_build.ps1
 .pytest_cache/

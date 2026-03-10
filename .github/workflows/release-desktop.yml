@@ -1,0 +1,113 @@
+name: Release Desktop Executables
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Windows build
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install project and PyInstaller
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build single-file executable
+        run: |
+          pyinstaller --onefile --console --name openia openia/cli.py
+
+      - name: Package artifact (zip)
+        run: |
+          Compress-Archive -Path dist\openia.exe -DestinationPath dist\openia-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openia-windows
+          path: dist/openia-windows.zip
+
+  # ---------------------------------------------------------------------------
+  # macOS build
+  # ---------------------------------------------------------------------------
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install project and PyInstaller
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build single-file executable
+        run: |
+          pyinstaller --onefile --console --name openia openia/cli.py
+
+      - name: Package artifact (zip, preserve executable bit)
+        run: |
+          cd dist
+          zip openia-macos.zip openia
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openia-macos
+          path: dist/openia-macos.zip
+
+  # ---------------------------------------------------------------------------
+  # Release: attach zipped executables to the GitHub Release
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openia-windows
+          path: artifacts/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openia-macos
+          path: artifacts/
+
+      - name: Publish GitHub Release
+        # pinned to v2.5.0 (a06a81a03ee405af7f2048a818ed3f03bbf83c7b)
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
+        with:
+          files: |
+            artifacts/openia-windows.zip
+            artifacts/openia-macos.zip
+          generate_release_notes: true
+
