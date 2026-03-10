@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "openia"
+version = "0.1.0"
+description = "A reverse-engineered, dumbed-down, submissive AI open to external judgment by means of transaction noise."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+# Monero wallet-RPC integration.
+#
+# NOTE: backbiten/monero (https://github.com/backbiten/monero.git, tag v0.18.4.3)
+# is the official Monero C++ daemon and cannot be pip-installed as a Python
+# package.  The Python dependencies below provide the wallet-RPC client layer
+# that sits in front of a running monero-wallet-rpc process:
+#
+#   - "monero" (PyPI): pure-Python wallet-RPC client (preferred)
+#   - "requests": required by the fallback JSON-RPC adapter when "monero" is absent
+monero = [
+    "requests>=2.28",
+    "monero>=1.1",
+]
+
+dev = [
+    "pytest>=7",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["openia*"]
