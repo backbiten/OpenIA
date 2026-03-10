@@ -31,6 +31,9 @@ all = [
     "monero>=1.1",
 ]
 
+[project.scripts]
+openia = "openia.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["openia*"]

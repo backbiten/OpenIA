@@ -18,11 +18,56 @@ to judgment from the outside by means of **transaction noise**.
 
 ---
 
+## Desktop executables (GitHub Releases)
+
+Pre-built, single-file executables for **Windows** and **macOS** are
+attached to every [GitHub Release](https://github.com/backbiten/OpenIA/releases).
+No Python installation is required.
+
+| Platform | Asset | How to run |
+|---|---|---|
+| **Windows** | `openia-windows.zip` → `openia.exe` | `.\openia.exe respond "help"` |
+| **macOS** | `openia-macos.zip` → `openia` | `./openia respond "help"` |
+
+### Download and run (macOS example)
+
+```bash
+# Download and unzip the latest release
+curl -L https://github.com/backbiten/OpenIA/releases/latest/download/openia-macos.zip -o openia-macos.zip
+unzip openia-macos.zip
+chmod +x openia
+
+# Run
+./openia version
+./openia respond "help"
+./openia respond "status"
+```
+
+### Download and run (Windows PowerShell example)
+
+```powershell
+# Download and unzip the latest release
+Invoke-WebRequest -Uri https://github.com/backbiten/OpenIA/releases/latest/download/openia-windows.zip -OutFile openia-windows.zip
+Expand-Archive openia-windows.zip -DestinationPath .
+
+# Run
+.\openia.exe version
+.\openia.exe respond "help"
+.\openia.exe respond "status"
+```
+
+Executables are built automatically by the
+[`release-desktop` workflow](.github/workflows/release-desktop.yml)
+whenever a `v*` tag is pushed.
+
+---
+
 ## Package layout
 
 ```
 openia/
   __init__.py            public API
+  cli.py                 CLI entry point (also used by PyInstaller)
   agent.py               Agent — the dumbed-down, submissive AI
   transaction.py         Transaction + TransactionLog — noise transport layer
   judge.py               Judge — external judgment interface
