@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openia"
+version = "0.1.0"
+description = "A Social Assistance Program That Dishes Coinbits To Control The System"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+
+# Core runtime has no mandatory third-party dependencies.
+dependencies = []
+
+[project.optional-dependencies]
+# XMR: PyPI monero library (preferred) + requests (fallback)
+monero = [
+    "requests>=2.28",
+    "monero>=1.1",
+]
+# BTC: requests for Bitcoin Core JSON-RPC
+bitcoin = [
+    "requests>=2.28",
+]
+# Card rails stub: no extra deps beyond stdlib
+cardrails = []
+# Install everything at once
+all = [
+    "requests>=2.28",
+    "monero>=1.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["openia*"]
+
+# ---------------------------------------------------------------------------
+# VCS references (informational — not installable via pip directly)
+# ---------------------------------------------------------------------------
+# backbiten/bitcoin  (Bitcoin Core, C++ daemon, commit d30f149360d10de31bd7f7369aa61ce8be0837b5)
+#   https://github.com/backbiten/bitcoin.git @ d30f149360d10de31bd7f7369aa61ce8be0837b5
+#   Not pip-installable; OpenIA uses Bitcoin Core JSON-RPC via `requests`.
+#
+# backbiten/monero  (Monero C++ daemon, tag v0.18.4.3)
+#   https://github.com/backbiten/monero.git @ v0.18.4.3
+#   Not pip-installable; OpenIA uses the PyPI `monero` library or a
+#   `requests`-based JSON-RPC fallback instead.
