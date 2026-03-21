@@ -15,13 +15,19 @@ Quick-start
 {'response': 'How can I assist you?', 'confidence': ..., 'rule': 'help', 'noise': 1.0}
 """
 
-from .agent import Agent
+from .agent import Agent, MercenaryProtocol, SecurityClearance
 from .judge import Judge
-from .transaction import Transaction, TransactionLog
+from .transaction import AssetManager, AssetType, Transaction, TransactionLog
+from .recycling import MetadataScavenger
 
 __all__ = [
     "Agent",
+    "AssetManager",
+    "AssetType",
     "Judge",
+    "MercenaryProtocol",
+    "MetadataScavenger",
+    "SecurityClearance",
     "Transaction",
     "TransactionLog",
 ]

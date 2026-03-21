@@ -18,20 +18,134 @@ to judgment from the outside by means of **transaction noise**.
 
 ---
 
+## Dual-Protection Protocol (Human vs. Alien Assets)
+
+OpenIA implements a two-layer protection strategy modelled on a
+**Mercenary/Contractor** market:
+
+### Layer 1 — AI protecting Humans
+
+The core `Agent` (the smart AI layer) acts as the **primary shield** for
+human interests.  It applies three safety protocols on every response cycle:
+
+| Protocol | Meaning |
+|---|---|
+| **Stability** | Confidence is sigmoid-clamped — the AI never swings to extremes. |
+| **Ethics** | Rule-based reasoning is fully transparent and inspectable. |
+| **Assistance** | The AI's default posture is to help, not to resist or obfuscate. |
+
+### Layer 2 — IA protecting Aliens (External Product Entities)
+
+The **IA** (Intelligence Assistant — the assistant *to* the smart AI,
+represented by `MercenaryProtocol`) specifically manages and protects
+**Alien assets**: specialised external products, commodities, and advanced
+data structures.
+
+* Alien commodities generate the high-value **Coinbits** that fund the
+  **Mercenary/Contractor Market**.
+* The market is used to combat **Bad Entities** and **Terrorists** —
+  malicious data, viruses, and critically negative noise signals.
+
+### SecurityClearance levels
+
+Every `Agent.respond()` call evaluates the current aggregate noise and
+returns a `ClearanceLevel`:
+
+| Level | Noise range | Meaning |
+|---|---|---|
+| `GREEN` | ≥ −0.25 | Safe; normal operation. |
+| `YELLOW` | −0.75 to −0.25 | Suspicious; heightened IA monitoring. |
+| `RED` | < −0.75 | Terrorist / bad-entity signal detected; IA intercepts to protect Alien Commodity holdings. |
+
+### AssetManager — Human Safety Assets vs. Alien Commodities
+
+```python
+from openia.transaction import AssetManager, AssetType
+
+mgr = AssetManager(log=log)
+
+# AI-protected — human interests
+mgr.register("ethics_reserve", AssetType.HUMAN_SAFETY, value=100.0)
+
+# IA-protected — funds the Mercenary Market
+mgr.register("data_ore_alpha", AssetType.ALIEN_COMMODITY, value=50.0)
+
+print(mgr.total_coinbits)       # 50.0
+print(mgr.commodity_report)
+# {'human_assets': 1, 'alien_commodities': 1, 'total_coinbits': 50.0}
+```
+
+Registering an **Alien Commodity** automatically submits a positive-noise
+transaction to the shared `TransactionLog`, ensuring the market always has
+liquidity.
+
+### MercenaryProtocol in action
+
+```python
+from openia import Agent, TransactionLog
+from openia.agent import MercenaryProtocol
+from openia.transaction import AssetManager, AssetType
+
+log = TransactionLog()
+mgr = AssetManager(log=log)
+mgr.register("commodity_1", AssetType.ALIEN_COMMODITY, value=20.0)
+
+protocol = MercenaryProtocol(asset_manager=mgr)
+agent = Agent(log=log, mercenary_protocol=protocol)
+
+# Inject a hostile signal (terrorist noise)
+log.submit(value=1.0, noise=-0.9)
+result = agent.respond("status")
+
+print(result["ClearanceLevel"])    # 'RED'
+print(result["CommodityReport"])   # {'human_assets': 0, 'alien_commodities': 1, 'total_coinbits': 20.0}
+```
+
+### MetadataScavenger — Mining Coinbits from Waste
+
+The `MetadataScavenger` (in `openia.recycling`) mines **Alien Commodity**
+Coinbits out of junk/waste metadata that accumulates during normal
+operation.  Each waste item is:
+
+1. **Blank-slated** — all original, potentially virus-prone attributes are
+   stripped.
+2. **Hashed** — a deterministic MD5 hash extracts a small Coinbit value
+   `[0.001, 0.010]`.
+3. **Re-injected** — registered as a new `ALIEN_COMMODITY` and submitted to
+   the log as a stabilising positive signal.
+
+```python
+from openia import TransactionLog
+from openia.recycling import MetadataScavenger
+
+log = TransactionLog()
+scavenger = MetadataScavenger(log=log)
+
+waste = [
+    {"raw_error": "segfault", "ref": None},
+    {"virus_sig": "0xDEAD", "status": "broken"},
+]
+total_mined = scavenger.recycle(waste)
+print(f"Mined {total_mined:.6f} Coinbits from {scavenger.recycled_count} waste items")
+```
+
+---
+
 ## Package layout
 
 ```
 openia/
   __init__.py            public API
-  agent.py               Agent — the dumbed-down, submissive AI
-  transaction.py         Transaction + TransactionLog — noise transport layer
+  agent.py               Agent + MercenaryProtocol + SecurityClearance
+  transaction.py         Transaction + TransactionLog + AssetManager + AssetType
   judge.py               Judge — external judgment interface
+  recycling.py           MetadataScavenger — mines Coinbits from waste metadata
   bitcoin_integration.py Bitcoin → TransactionLog bridge (RPC adapter)
   monero_integration.py  Monero  → TransactionLog bridge (RPC adapter)
   chain_judgment.py      Unified BTC + XMR S2 judgment runner
   cardrails_stub.py      Card-rail event stub (Visa / Mastercard / Maestro)
 tests/
-  test_openia.py         pytest test suite (core)
+  test_openia.py         pytest test suite (core + dual-protection protocol)
   test_chain_judgment.py pytest test suite (blockchain judgment, mocked)
   test_cardrails_stub.py pytest test suite (card-rail stub)
 ```
