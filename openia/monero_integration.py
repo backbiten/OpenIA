@@ -52,7 +52,7 @@ from __future__ import annotations
 
 import os
 import urllib.parse
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 if TYPE_CHECKING:
     from .transaction import TransactionLog
@@ -199,6 +199,7 @@ def _sync_via_requests(
         transfers = transfers[:max_transfers]
 
     records: List[dict] = []
+    waste_bin: List[dict] = []
     for tx in transfers:
         confirmations = tx.get("confirmations", 0)
         if confirmations < min_confirmations:
@@ -207,6 +208,7 @@ def _sync_via_requests(
         address = tx.get("address", "")
         noise = _classify_address(address, approve, disapprove)
         if noise is None:
+            waste_bin.append(tx)
             continue
 
         amount_xmr = tx.get("amount", 0) / _PICONERO
@@ -219,6 +221,11 @@ def _sync_via_requests(
                 "noise": noise,
             }
         )
+
+    if waste_bin:
+        from .recycling import MetadataScavenger  # noqa: PLC0415
+
+        MetadataScavenger(log.assets).recycle(waste_bin)
 
     return records
 
@@ -254,6 +261,7 @@ def _sync_via_monero_lib(
         incoming = incoming[:max_transfers]
 
     records: List[dict] = []
+    waste_bin: List[Any] = []
     for payment in incoming:
         confirmations = getattr(
             getattr(payment, "transaction", None), "confirmations", None
@@ -264,6 +272,7 @@ def _sync_via_monero_lib(
         address = str(getattr(payment, "local_address", "") or "")
         noise = _classify_address(address, approve, disapprove)
         if noise is None:
+            waste_bin.append(payment)
             continue
 
         amount_xmr = float(payment.amount)
@@ -282,6 +291,11 @@ def _sync_via_monero_lib(
                 "noise": noise,
             }
         )
+
+    if waste_bin:
+        from .recycling import MetadataScavenger  # noqa: PLC0415
+
+        MetadataScavenger(log.assets).recycle(waste_bin)
 
     return records
 
