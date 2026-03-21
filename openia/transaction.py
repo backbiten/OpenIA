@@ -5,13 +5,20 @@ External parties judge the agent by injecting noise into the transaction
 stream.  Each ``Transaction`` carries a value and a noise signal; the
 ``TransactionLog`` accumulates them and exposes the aggregate noise level
 that the :class:`~openia.agent.Agent` uses when deciding how to respond.
+
+:class:`AssetManager` extends the log with an optional link to the
+Internal Stock Exchange (:class:`~openia.market.InternalMarket`), so that
+transaction activity can feed back into internal resource pricing.
 """
 
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from .market import InternalMarket
 
 
 @dataclass
@@ -109,4 +116,103 @@ class TransactionLog:
             f"TransactionLog(count={len(self)}, "
             f"total_value={self.total_value:.4f}, "
             f"aggregate_noise={self.aggregate_noise:.4f})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# AssetManager
+# ---------------------------------------------------------------------------
+
+
+class AssetManager:
+    """Connects a :class:`TransactionLog` to the Internal Stock Exchange.
+
+    The ``AssetManager`` wraps a ``TransactionLog`` and, optionally, an
+    :class:`~openia.market.InternalMarket`.  Every time a transaction is
+    submitted, the manager reflects the total transaction value back into
+    the market as recycled liquidity, keeping the internal token supply
+    aligned with real transaction activity.
+
+    Parameters
+    ----------
+    log:
+        The underlying :class:`TransactionLog`.  If *None* a new one is
+        created.
+    market:
+        An :class:`~openia.market.InternalMarket` instance.  If *None*
+        one is created automatically.
+
+    Examples
+    --------
+    >>> from openia.transaction import AssetManager
+    >>> am = AssetManager()
+    >>> am.submit(value=0.5, noise=0.2)
+    Transaction(value=0.5, noise=0.2)
+    >>> am.market_snapshot()["Coinbits"] > 0
+    True
+    """
+
+    def __init__(
+        self,
+        log: Optional[TransactionLog] = None,
+        market: Optional["InternalMarket"] = None,
+    ) -> None:
+        self._log: TransactionLog = log if log is not None else TransactionLog()
+        # Lazy import avoids a circular dependency at module level.
+        if market is None:
+            from .market import InternalMarket  # noqa: PLC0415
+
+            market = InternalMarket()
+        self._market: "InternalMarket" = market
+
+    # ------------------------------------------------------------------
+    # Delegated log interface
+    # ------------------------------------------------------------------
+
+    def submit(self, value: float, noise: Optional[float] = None) -> Transaction:
+        """Submit a transaction and synchronise market liquidity.
+
+        The transaction ``value`` is injected as recycled liquidity into the
+        :class:`~openia.market.InternalMarket`, gently raising internal
+        token prices proportional to overall activity.
+        """
+        tx = self._log.submit(value=value, noise=noise)
+        self._market.inject_recycled_liquidity(abs(value))
+        return tx
+
+    @property
+    def log(self) -> TransactionLog:
+        """The underlying :class:`TransactionLog`."""
+        return self._log
+
+    @property
+    def market(self) -> "InternalMarket":
+        """The linked :class:`~openia.market.InternalMarket`."""
+        return self._market
+
+    # ------------------------------------------------------------------
+    # Market helpers
+    # ------------------------------------------------------------------
+
+    def market_snapshot(self) -> Dict[str, float]:
+        """Return current internal market prices."""
+        return self._market.snapshot()
+
+    def update_market(
+        self,
+        *,
+        cpu_usage: float = 0.0,
+        memory_usage: float = 0.0,
+        ai_performance: float = 1.0,
+    ) -> None:
+        """Propagate system-resource metrics to the internal market."""
+        self._market.update(
+            cpu_usage=cpu_usage,
+            memory_usage=memory_usage,
+            ai_performance=ai_performance,
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"AssetManager(log={self._log!r}, market={self._market!r})"
         )

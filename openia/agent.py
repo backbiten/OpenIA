@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
+from .market import InternalMarket
 from .transaction import TransactionLog
 
 
@@ -88,9 +89,11 @@ class Agent:
         self,
         log: Optional[TransactionLog] = None,
         rules: Optional[List[_Rule]] = None,
+        market: Optional[InternalMarket] = None,
     ) -> None:
         self._log: TransactionLog = log if log is not None else TransactionLog()
         self._rules: List[_Rule] = rules if rules is not None else list(_DEFAULT_RULES)
+        self._market: InternalMarket = market if market is not None else InternalMarket()
 
     # ------------------------------------------------------------------
     # Public API
@@ -106,6 +109,11 @@ class Agent:
         """Current aggregate noise from the transaction log."""
         return self._log.aggregate_noise
 
+    @property
+    def market(self) -> InternalMarket:
+        """The Internal Stock Exchange the agent monitors."""
+        return self._market
+
     def respond(self, input_text: str) -> Dict[str, Any]:
         """Generate a response to *input_text*.
 
@@ -116,6 +124,9 @@ class Agent:
           noise.
         * ``"rule"`` — the name of the rule that fired (or ``"none"``).
         * ``"noise"`` — the aggregate noise level at response time.
+        * ``"internal_market_report"`` — current ISE prices for all
+          internal AI-component currencies.  This is strictly internal;
+          it has no relation to external fiat currencies.
         """
         context: Dict[str, Any] = {"input": input_text}
 
@@ -148,6 +159,7 @@ class Agent:
             "confidence": round(adjusted_confidence, 4),
             "rule": fired_rule,
             "noise": round(noise, 4),
+            "internal_market_report": self._market.snapshot(),
         }
 
     # ------------------------------------------------------------------
@@ -168,5 +180,6 @@ class Agent:
     def __repr__(self) -> str:
         return (
             f"Agent(rules={len(self._rules)}, "
-            f"noise={self.noise_level:.4f})"
+            f"noise={self.noise_level:.4f}, "
+            f"market={self._market!r})"
         )

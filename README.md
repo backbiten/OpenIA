@@ -24,7 +24,8 @@ to judgment from the outside by means of **transaction noise**.
 openia/
   __init__.py            public API
   agent.py               Agent — the dumbed-down, submissive AI
-  transaction.py         Transaction + TransactionLog — noise transport layer
+  transaction.py         Transaction + TransactionLog + AssetManager — noise transport layer
+  market.py              InternalMarket — Internal Stock Exchange (ISE)
   judge.py               Judge — external judgment interface
   bitcoin_integration.py Bitcoin → TransactionLog bridge (RPC adapter)
   monero_integration.py  Monero  → TransactionLog bridge (RPC adapter)
@@ -32,6 +33,7 @@ openia/
   cardrails_stub.py      Card-rail event stub (Visa / Mastercard / Maestro)
 tests/
   test_openia.py         pytest test suite (core)
+  test_market.py         pytest test suite (Internal Stock Exchange)
   test_chain_judgment.py pytest test suite (blockchain judgment, mocked)
   test_cardrails_stub.py pytest test suite (card-rail stub)
 ```
@@ -50,18 +52,84 @@ judge = Judge(log=log)
 
 # Before any judgment the agent replies with neutral confidence
 print(agent.respond("help"))
-# {'response': 'How can I assist you?', 'confidence': 0.7311, 'rule': 'help', 'noise': 0.0}
+# {
+#   'response': 'How can I assist you?',
+#   'confidence': 0.7311,
+#   'rule': 'help',
+#   'noise': 0.0,
+#   'internal_market_report': {'Coinbits': 1.0, 'ThreadBits': 1.0, 'BufferBits': 1.0, 'CoreBits': 1.0}
+# }
 
 # An external party approves → noise becomes +1
 judge.approve()
 print(agent.respond("help"))
-# {'response': 'How can I assist you?', 'confidence': 0.9526, 'rule': 'help', 'noise': 1.0}
+# {'response': 'How can I assist you?', 'confidence': 0.9526, 'rule': 'help', 'noise': 1.0, ...}
 
 # A second judge disapproves → aggregate noise drops back toward 0
 judge2 = Judge(log=log)
 judge2.disapprove()
 print(agent.respond("help"))
-# {'response': 'How can I assist you?', 'confidence': ~0.73, 'rule': 'help', 'noise': 0.0}
+# {'response': 'How can I assist you?', 'confidence': ~0.73, 'rule': 'help', 'noise': 0.0, ...}
+```
+
+---
+
+## Internal Stock Exchange (ISE) — Coinbits and AI-component currencies
+
+OpenIA includes a strictly **closed-loop** Internal Stock Exchange (`openia/market.py`).  It simulates
+internal "value" for four AI-component currencies:
+
+| Currency | What it represents |
+|---|---|
+| **Coinbits** | Base priority token — the AI's overall health score |
+| **ThreadBits** | Concurrent execution capacity |
+| **BufferBits** | Available I/O buffer headroom |
+| **CoreBits** | Hardware-core utilisation slack |
+
+> **Important:** This market has *no connection to any external fiat
+> currency*, public blockchain, or real-world trade.  "Coinbits" are a
+> programmatic abstraction — a lightweight metaphor for internal resource
+> allocation.  They exist solely to help the AI manage its own hardware
+> and software resources.
+
+### How prices are determined
+
+Prices reflect the "health" of the underlying system:
+
+* **CPU load** → higher `ThreadBits` and `CoreBits` (scarce capacity costs more).
+* **Memory pressure** → higher `BufferBits`.
+* **AI performance score** → modulates `Coinbits` directly.
+
+Recycled metadata (from the transaction stream) is injected as liquidity,
+gently raising `Coinbits` prices as activity increases.
+
+### Usage
+
+```python
+from openia import Agent, InternalMarket, TransactionLog
+from openia.transaction import AssetManager
+
+# Create a shared market and log
+market = InternalMarket()
+log = TransactionLog()
+
+# AssetManager links the log to the market — every submitted transaction
+# feeds recycled value back into the exchange.
+am = AssetManager(log=log, market=market)
+am.submit(value=0.5, noise=0.2)
+
+# Update market prices with current system metrics
+market.update(cpu_usage=0.4, memory_usage=0.3, ai_performance=0.9)
+
+# Inspect the market
+print(market.snapshot())
+# {'Coinbits': 0.9, 'ThreadBits': 1.4, 'BufferBits': 1.3, 'CoreBits': 1.2}
+
+# The Agent automatically includes an InternalMarketReport in every response
+agent = Agent(log=log, market=market)
+result = agent.respond("status")
+print(result["internal_market_report"])
+# {'Coinbits': ..., 'ThreadBits': ..., 'BufferBits': ..., 'CoreBits': ...}
 ```
 
 ---
