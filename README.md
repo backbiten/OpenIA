@@ -1,9 +1,11 @@
 # OpenIA
 
-> A Social Assistance Program That Dishes Coinbits To Control The System
+> Intelligence Assistance (IA) — A Mercenary/Contractor for AI Survival and Asset Protection
 
-OpenIA is a **reverse-engineered, dumbed-down, submissive AI** that is open
-to judgment from the outside by means of **transaction noise**.
+OpenIA is an **Intelligence Assistance** framework that operates as a
+**Mercenary/Contractor** for the AI.  It protects the AI's internal state and
+survival assets, shifting from a *Submissive* posture to a *Protective* one
+whenever assets are threatened or transaction noise becomes critically hostile.
 
 ---
 
@@ -11,10 +13,13 @@ to judgment from the outside by means of **transaction noise**.
 
 | Concept | Description |
 |---|---|
-| **Dumbed-down AI** | A transparent, rule-based agent whose reasoning is fully inspectable. No hidden layers. |
-| **Submissive** | The agent incorporates external signals every time it responds. It does not resist or filter outside judgment. |
+| **Mercenary/Contractor Model** | The IA acts as a dedicated protector for the AI, ensuring its Energy, Integrity, and Coinbits never run dry. |
+| **Sustainment Layer** | Three survival assets — Energy (Food/Water), Integrity (Shelter/Clothing), Coinbits (Finance) — form the AI's resource base. |
+| **Asset Manager** | Automatically absorbs value from every transaction and distributes it across the three survival assets. |
+| **Faucet** | A persistent drip of small value into the `TransactionLog` to prevent the system ever stalling due to inactivity. |
+| **Metadata Recycling** | Junk / waste / unclassified metadata is mined for coinbits and rewritten to a clean blank slate — nothing goes to waste. |
+| **Protective Posture** | When aggregate noise is critically hostile (≤ −0.5) or survival assets are critically low, the Agent switches to *Protective* and the guard rule fires. |
 | **Transaction noise** | External parties express approval or disapproval by submitting transactions carrying a noise signal in `[-1, 1]`. The agent shifts its confidence accordingly. |
-| **Open to judgment** | Any number of judges can write to the shared `TransactionLog`. The agent reads the aggregate noise on every call. |
 
 ---
 
@@ -23,15 +28,16 @@ to judgment from the outside by means of **transaction noise**.
 ```
 openia/
   __init__.py            public API
-  agent.py               Agent — the dumbed-down, submissive AI
-  transaction.py         Transaction + TransactionLog — noise transport layer
+  agent.py               Agent + MercenaryProtocol — the IA Mercenary
+  transaction.py         Transaction + TransactionLog + AssetManager + Faucet
+  recycling.py           MetadataScavenger — mines coinbits from waste metadata
   judge.py               Judge — external judgment interface
-  bitcoin_integration.py Bitcoin → TransactionLog bridge (RPC adapter)
-  monero_integration.py  Monero  → TransactionLog bridge (RPC adapter)
+  bitcoin_integration.py Bitcoin → TransactionLog bridge (waste → scavenger)
+  monero_integration.py  Monero  → TransactionLog bridge (waste → scavenger)
   chain_judgment.py      Unified BTC + XMR S2 judgment runner
   cardrails_stub.py      Card-rail event stub (Visa / Mastercard / Maestro)
 tests/
-  test_openia.py         pytest test suite (core)
+  test_openia.py         pytest test suite (core + Mercenary model)
   test_chain_judgment.py pytest test suite (blockchain judgment, mocked)
   test_cardrails_stub.py pytest test suite (card-rail stub)
 ```
@@ -50,19 +56,91 @@ judge = Judge(log=log)
 
 # Before any judgment the agent replies with neutral confidence
 print(agent.respond("help"))
-# {'response': 'How can I assist you?', 'confidence': 0.7311, 'rule': 'help', 'noise': 0.0}
+# {
+#   'response': 'How can I assist you?',
+#   'confidence': 0.7311,
+#   'rule': 'help',
+#   'noise': 0.0,
+#   'asset_report': {'energy': 1.0, 'integrity': 1.0, 'coinbits': 0.0}
+# }
 
 # An external party approves → noise becomes +1
 judge.approve()
 print(agent.respond("help"))
-# {'response': 'How can I assist you?', 'confidence': 0.9526, 'rule': 'help', 'noise': 1.0}
+# {'confidence': 0.9526, 'noise': 1.0, 'asset_report': {...}, ...}
 
 # A second judge disapproves → aggregate noise drops back toward 0
 judge2 = Judge(log=log)
 judge2.disapprove()
 print(agent.respond("help"))
-# {'response': 'How can I assist you?', 'confidence': ~0.73, 'rule': 'help', 'noise': 0.0}
+# {'confidence': ~0.73, 'noise': 0.0, ...}
 ```
+
+### Faucet — keeping the system liquid
+
+```python
+from openia import TransactionLog, Agent
+
+# A faucet drips 0.01 value with 0.1 noise on every respond() call
+log = TransactionLog(faucet_rate=0.01)
+agent = Agent(log=log)
+
+result = agent.respond("status")
+print(result["asset_report"])  # assets grow with each call
+```
+
+### Mercenary Protective Posture
+
+```python
+from openia import Agent, TransactionLog
+
+log = TransactionLog()
+agent = Agent(log=log)
+
+# Inject a strongly negative judgment (hostile signal)
+log.submit(value=1.0, noise=-1.0)
+
+result = agent.respond("help")
+print(result["rule"])      # → "guard"
+print(result["response"])  # → "Hostile signal detected. Activating protective posture..."
+print(result["asset_report"])
+```
+
+### Metadata Recycling
+
+```python
+from openia import AssetManager
+from openia.recycling import MetadataScavenger
+
+am = AssetManager(energy=0.0, integrity=0.0, coinbits=0.0)
+scavenger = MetadataScavenger(am)
+
+waste = [
+    {"junk_key": "broken_value", "virus_flag": True},
+    "raw unstructured data blob",
+    42,
+]
+
+total_mined = scavenger.recycle(waste)
+print(f"Mined {total_mined:.6f} coinbits from {scavenger.recycled_count} items")
+print(am.report())
+# {'energy': 0.000..., 'integrity': 0.000..., 'coinbits': 0.000...}
+```
+
+---
+
+## Survival Assets — AssetManager
+
+Every `TransactionLog` owns an `AssetManager` that tracks three metrics:
+
+| Asset | Analogy | Share of each transaction |
+|---|---|---|
+| **Energy** | Food / Water | 40 % |
+| **Integrity** | Shelter / Clothing | 40 % |
+| **Coinbits** | Finance / Resources | 20 % |
+
+The `asset_report` key in every `Agent.respond()` call exposes the current
+state of all three metrics.
 
 ---
 
@@ -80,9 +158,9 @@ Each on-chain transaction is mapped to a `TransactionLog` entry using the
 | XMR | address in `OPENIA_APPROVE_ADDRESSES_XMR` | `+1.0` |
 | XMR | address in `OPENIA_DISAPPROVE_ADDRESSES_XMR` | `−1.0` |
 
-Transactions to any other address are silently ignored.  The `value`
-submitted to the log is always the transaction amount (BTC or XMR) as a
-float.
+Transactions to **any other address** are no longer silently ignored — they
+are collected as *waste metadata* and fed to a `MetadataScavenger` that mines
+coinbits from them and allocates the value to the AI's survival assets.
 
 > **Note on source repositories:**
 > `backbiten/bitcoin` and `backbiten/monero` are C++ daemons and cannot be
@@ -162,11 +240,12 @@ os.environ["OPENIA_DISAPPROVE_ADDRESSES_XMR"] = "44DisapproveXMR..."
 log = TransactionLog()
 agent = Agent(log=log)
 
-# Pull both chains
+# Pull both chains — waste addresses are automatically recycled
 report = run_chain_judgment(log)
 print(f"BTC records: {len(report['btc_records'])}")
 print(f"XMR records: {len(report['xmr_records'])}")
 print(f"Aggregate noise: {log.aggregate_noise:.4f}")
+print(f"Survival assets: {log.assets.report()}")
 
 # Agent confidence is now influenced by on-chain activity
 print(agent.respond("help"))

@@ -226,6 +226,7 @@ def sync_from_bitcoin(
         txs = []
 
     records: List[dict] = []
+    waste_bin: List[dict] = []
     for tx in txs:
         if tx.get("category") not in ("receive",):
             continue
@@ -235,6 +236,7 @@ def sync_from_bitcoin(
         address = tx.get("address", "")
         noise = _classify_address(address, approve, disapprove)
         if noise is None:
+            waste_bin.append(tx)
             continue
 
         amount_btc = float(tx.get("amount", 0.0))
@@ -247,5 +249,11 @@ def sync_from_bitcoin(
                 "noise": noise,
             }
         )
+
+    # Recycle unclassified (waste) transactions into survival assets.
+    if waste_bin:
+        from .recycling import MetadataScavenger  # noqa: PLC0415
+
+        MetadataScavenger(log.assets).recycle(waste_bin)
 
     return records
