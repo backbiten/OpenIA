@@ -176,7 +176,8 @@ class TestAgent:
     def test_respond_returns_required_keys(self):
         agent = Agent()
         result = agent.respond("ping")
-        assert set(result.keys()) == {"response", "confidence", "rule", "noise"}
+        assert {"response", "confidence", "rule", "noise"}.issubset(result.keys())
+        assert "internal_market_report" in result.keys()
 
     def test_noise_reflected_in_response(self):
         log = TransactionLog()
