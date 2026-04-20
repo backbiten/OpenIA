@@ -31,11 +31,13 @@ openia/
   monero_integration.py  Monero  → TransactionLog bridge (RPC adapter)
   chain_judgment.py      Unified BTC + XMR S2 judgment runner
   cardrails_stub.py      Card-rail event stub (Visa / Mastercard / Maestro)
+  coinbit_adapter.py     Coinbit ↔ Bitcoin compatibility adapter
 tests/
   test_openia.py         pytest test suite (core)
   test_market.py         pytest test suite (Internal Stock Exchange)
   test_chain_judgment.py pytest test suite (blockchain judgment, mocked)
   test_cardrails_stub.py pytest test suite (card-rail stub)
+  test_coinbit_adapter.py pytest test suite (coinbit adapter)
 ```
 
 ---
@@ -301,6 +303,53 @@ records = ingest_card_events_from_file(log, "events.json")
 print(f"Submitted {len(records)} record(s); aggregate noise = {log.aggregate_noise:.4f}")
 print(agent.respond("help"))
 ```
+
+---
+
+## Coinbit adapter (coinbit ↔ Bitcoin compatibility layer)
+
+`openia.coinbit_adapter` converts **coinbit** payment events into
+`TransactionLog` entries and provides a batched settlement helper that
+aggregates per-merchant coinbit receipts into a single Bitcoin on-chain
+transaction.
+
+> **Note:** Coinbits are a lightweight off-chain payment unit.  The
+> adapter treats 1 coinbit = `COINBIT_TO_SATOSHIS` satoshis (default: 100).
+
+### Quick example
+
+```python
+from openia import TransactionLog
+from openia.coinbit_adapter import ingest_coinbit_events, batch_settle_to_btc
+
+log = TransactionLog()
+
+events = [
+    {
+        "txid": "cb-001",
+        "amount_coinbits": 200.0,
+        "sender": "buyer-alice",
+        "receiver": "merchant-A",
+        "btc_address": "bc1qmerchant...",
+    },
+]
+
+# Ingest events — converts coinbits to satoshis and appends to log
+records = ingest_coinbit_events(log, events)
+
+# Batch-settle to Bitcoin (dry_run=True by default — no network access needed)
+settlements = batch_settle_to_btc(
+    {"merchant-A": records},
+    threshold_sats=10_000,
+    dry_run=True,
+)
+print(settlements)
+# [{'merchant': 'merchant-A', 'total_sats': 20000, 'btc_txid': 'simulated-btc-...', ...}]
+```
+
+**Caveats:** The in-memory coinbit → BTC txid mapping should be persisted to
+a database in production.  Fee estimation and UTXO selection are also omitted;
+see the module docstring for full notes.
 
 ---
 
